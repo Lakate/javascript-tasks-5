@@ -1,6 +1,7 @@
 module.exports = function () {
     var events = {};
     var students = [];
+    var studentSubscriptions = [];
 
     return {
         on: function (eventName, student, callback) {
@@ -8,11 +9,13 @@ module.exports = function () {
             if (studentNumber === -1) {
                 students.push(student);
                 studentNumber = students.length - 1;
+                studentSubscriptions.push([]);
             }
             var newReaction = {
                 student: studentNumber,
                 callback: callback
             };
+            studentSubscriptions[studentNumber].push(eventName);
             if (!(eventName in events)) {
                 events[eventName] = [];
             }
@@ -32,6 +35,10 @@ module.exports = function () {
                         return true;
                     }));
                 }
+                deleteEvents.forEach(function (event) {
+                    var numberSubscription = studentSubscriptions[studentNumber].indexOf(event);
+                    studentSubscriptions[studentNumber].splice(numberSubscription, 1);
+                });
                 for (var event = 0; event < deleteEvents.length; event++) {
                     for (var i = 0; i < events[deleteEvents[event]].length; i++) {
                         if (events[deleteEvents[event]][i].student === studentNumber) {
@@ -43,18 +50,29 @@ module.exports = function () {
         },
 
         emit: function (eventName) {
-            var currentEvents = [eventName];
+            var doIt = eventName;
+            var currentEvents = [doIt];
             var indexOfPoint = eventName.lastIndexOf('.');
             while (indexOfPoint !== -1) {
-                eventName = eventName.substring(0, indexOfPoint);
-                currentEvents = currentEvents.concat(eventName);
-                indexOfPoint = eventName.lastIndexOf('.');
+                doIt = doIt.substring(0, indexOfPoint);
+                currentEvents = currentEvents.concat(doIt);
+                indexOfPoint = doIt.lastIndexOf('.');
             }
-            currentEvents.forEach(function (event) {
-                if (!(event in events)) {
+            students.forEach(function (student, item) {
+                var studentEvents = studentSubscriptions[item];
+                if (studentEvents.indexOf(eventName) === -1) {
                     return;
                 }
-                events[event].forEach(function (person) {
+                studentEvents.forEach(function (event) {
+                    if (currentEvents.indexOf(event) === -1) {
+                        return;
+                    }
+                    var person;
+                    events[event].forEach(function (studentReaction) {
+                        if (studentReaction.student === item) {
+                            person = studentReaction;
+                        }
+                    });
                     var keys = Object.keys(person);
                     if (keys.length == 2) {
                         person.callback.call(students[person.student]);
